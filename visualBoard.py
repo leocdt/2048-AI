@@ -1,9 +1,33 @@
 import random
-import os
+import pygame
 
-# Initialisation du plateau de jeu
-board = [[0 for _ in range(4)] for _ in range(4)]
 
+# Initialize the game
+pygame.init()
+
+# Constants
+WIDTH, HEIGHT = 400, 400
+GRID_SIZE = 4
+CELL_SIZE = WIDTH // GRID_SIZE
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+TILE_COLORS = {
+    0: (204, 192, 179),
+    2: (238, 228, 218),
+    4: (237, 224, 200),
+    8: (242, 177, 121),
+    16: (245, 149, 99),
+    32: (246, 124, 95),
+    64: (246, 94, 59),
+    128: (237, 207, 114),
+    256: (237, 204, 97),
+    512: (237, 200, 80),
+    1024: (237, 197, 63),
+    2048: (237, 194, 46),
+}
+
+# Initialize the game board
+board = [[0 for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
 
 # Fonction pour ajouter un nouveau nombre (2 ou 4) à une position aléatoire vide sur le plateau
 def add_new_number():
@@ -13,30 +37,6 @@ def add_new_number():
         i, j = random.choice(empty_cells)
         board[i][j] = random.choice([2, 4])
 
-
-# Fonction pour afficher le plateau de jeu
-def print_board():
-    for row in board:
-        print('\t'.join(map(str, row)))
-        print()
-        
-def print_colored_board():
-    for row in board:
-        colored_row = []
-        for num in row:
-            if num == 0:
-                colored_row.append('\033[0m' + str(num).center(6))
-            elif num == 2:
-                colored_row.append('\033[94m' + str(num).center(6))  # Blue color for 2
-            elif num == 4:
-                colored_row.append('\033[92m' + str(num).center(6))  # Green color for 4
-            elif num == 8:
-                colored_row.append('\033[93m' + str(num).center(6))  # Yellow color for 8
-            else:
-                colored_row.append('\033[91m' + str(num).center(6))  # Red color for other numbers
-
-        print(''.join(colored_row) + '\033[0m')  # Reset color after each row
-        print()
 
 def move_left():
     global board
@@ -124,7 +124,7 @@ def move_down():
         for i in range(4):
             board[i][j] = temp_column[i]
 
-            
+
 def is_game_over():
     # Check if there are any possible moves left
     for i in range(4):
@@ -137,35 +137,96 @@ def is_game_over():
                 return False
     return True
 
+def game_over_screen(screen):
+    font = pygame.font.Font(None, 36)  # Reduced font size to 36
+    text = font.render("Game Over!", True, BLACK)
+    text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2 - 50))
 
-def play_game():
+    restart_text = font.render("Appuyez sur Entrée pour rejouer", True, BLACK)
+    restart_rect = restart_text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 50))
+
+    # Draw semi-transparent white rectangle to overlay the game
+    overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    pygame.draw.rect(overlay, (255, 255, 255, 128), (0, 0, WIDTH, HEIGHT))
+    screen.blit(overlay, (0, 0))
+
+    screen.blit(text, text_rect)
+    screen.blit(restart_text, restart_rect)
+
+    pygame.display.flip()
+
+    waiting_for_input = True
+    while waiting_for_input:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    initialize_game()
+                    waiting_for_input = False
+
+
+def initialize_game():
+    global board
+    board = [[0 for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
     add_new_number()
     add_new_number()
-    while True:
-        os.system('cls' if os.name == 'nt' else 'clear')
-        print_colored_board()
+
+
+def add_new_number():
+    empty_cells = [(i, j) for i in range(GRID_SIZE)
+                   for j in range(GRID_SIZE) if board[i][j] == 0]
+    if empty_cells:
+        i, j = random.choice(empty_cells)
+        board[i][j] = 2 if random.random() < 0.9 else 4
+
+def draw_board(screen):
+    for i in range(GRID_SIZE):
+        for j in range(GRID_SIZE):
+            pygame.draw.rect(screen, TILE_COLORS[board[i][j]],
+                             (j * CELL_SIZE, i * CELL_SIZE, CELL_SIZE, CELL_SIZE))
+            if board[i][j] != 0:
+                font = pygame.font.Font(None, 36)
+                text = font.render(str(board[i][j]), True, BLACK)
+                text_rect = text.get_rect(center=(j * CELL_SIZE + CELL_SIZE / 2, i * CELL_SIZE + CELL_SIZE / 2))
+                screen.blit(text, text_rect)
+
+    pygame.display.flip()
+
+def main():
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.display.set_caption('2048 Game')
+    
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    move_left()
+                    add_new_number()
+                elif event.key == pygame.K_RIGHT:
+                    move_right()
+                    add_new_number()
+                elif event.key == pygame.K_UP:
+                    move_up()
+                    add_new_number()
+                elif event.key == pygame.K_DOWN:
+                    move_down()
+                    add_new_number()
+
+        screen.fill(WHITE)
+        draw_board(screen)
+        pygame.display.update()
+
         if is_game_over():
             print("Game Over! Merci d'avoir joué.")
-            break
-        move = input(
-            "Entrez votre mouvement (gauche, droite, haut, bas) ou 'q' pour quitter : ").lower()
-        if move == 'q':
-            print("Merci d'avoir joué !")
-            break
-        elif move in ['gauche', 'droite', 'haut', 'bas']:
-            if move == 'gauche':
-                move_left()
-            elif move == 'droite':
-                move_right()
-            elif move == 'haut':
-                move_up()
-            elif move == 'bas':
-                move_down()
-            add_new_number()
-        else:
-            print("Mouvement non valide. Essayez encore.")
+            game_over_screen(screen)
 
+    pygame.quit()
 
-# Lancer le jeu
 if __name__ == "__main__":
-    play_game()
+    initialize_game()
+    main()
